@@ -1,8 +1,8 @@
 """Скриншоты окон программы для отчётов.
 
-Запускается из make_report.py отдельным процессом. Генератор случайных чисел
-фиксирован тем же зерном, что и в отчёте, поэтому числа на скриншотах
-совпадают с таблицами отчёта.
+Запускается из make_report.py отдельным процессом. В поля «Зерно генератора»
+вписывается то же зерно, что и в отчёте, поэтому числа на скриншотах совпадают
+с таблицами отчёта.
 """
 import sys
 import time
@@ -21,17 +21,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 app = QApplication([])
 app.setStyle("Fusion")
 
-from dataclasses import replace  # noqa: E402
-
-import hmi_lab.gui.lr1_tab as lr1_mod  # noqa: E402
-import hmi_lab.gui.lr2_tab as lr2_mod  # noqa: E402
-from hmi_lab.dialog_sim import DialogSimulator  # noqa: E402
 from hmi_lab.gui.main_window import MainWindow  # noqa: E402
-
-# фиксированное зерно, как в отчёте
-lr1_mod.DialogSimulator = lambda theme: DialogSimulator(theme, SEED)
-_params = lr2_mod.Lr2Tab.params
-lr2_mod.Lr2Tab.params = lambda self: replace(_params(self), seed=SEED)
 
 w = MainWindow()
 w.resize(1440, 900)
@@ -60,10 +50,12 @@ def shot(index, name):
 
 shot(0, "screen_data")
 lr1 = w.pages.widget(1)
+lr1.seed.setValue(SEED)  # то же зерно, что в отчёте (оно же стоит по умолчанию)
 lr1.run()
 wait(lr1.task)
 shot(1, "screen_lr1")
 lr2 = w.pages.widget(2)
+lr2.seed.setValue(SEED)
 lr2.run()
 wait(lr2.task)
 shot(2, "screen_lr2")

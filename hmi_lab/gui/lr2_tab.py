@@ -8,10 +8,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QComboBox, QGridLayout, QHBoxLayout, QMessageBox, QVBoxLayout,
                                QWidget)
 
+from ..dialog_sim import DEFAULT_SEED
 from ..efficiency_sim import EfficiencyModel, Lr2Params
 from ..plots import draw_lr2, draw_study, run_study
 from .common import (Card, Kpi, Plot, Task, button, field, ispin, label, page_header,
-                     progress_bar, spin)
+                     progress_bar, seed_edit, spin)
 
 STUDIES = [  # ключ параметра, подпись, значения
     ("p", "P ошибки оператора", np.linspace(0, 0.6, 7)),
@@ -33,6 +34,7 @@ class Lr2Tab(QWidget):
         self.p2 = spin(0, 0.95, d.p2, 0.05, 2)
         self.horizon = spin(1, 100_000, d.horizon_hours, 24, 0, " ч")
         self.runs = ispin(1, 500, d.runs)
+        self.seed = seed_edit(DEFAULT_SEED)
 
         # --- параметры -------------------------------------------------------
         params = Card("Параметры системы", "Значения по умолчанию уже подобраны")
@@ -45,7 +47,10 @@ class Lr2Tab(QWidget):
                 ("P ошибки: подтема 1", self.p1), ("P ошибки: подтема 2", self.p2),
                 ("Период", self.horizon), ("Повторов", self.runs))):
             grid.addWidget(field(cap, w), i // 2, i % 2)
+        grid.addWidget(field("Зерно генератора", self.seed), 4, 0, 1, 2)
         params.add(grid)
+        params.add(label("С зерном 2026 получаются те же числа, что в отчёте. "
+                         "Пусто — каждый расчёт случайный.", "muted", True))
         self.run_btn = button("Рассчитать")
         self.run_btn.clicked.connect(self.run)
         params.body.addSpacing(4)
@@ -123,7 +128,7 @@ class Lr2Tab(QWidget):
         return Lr2Params(lam_per_hour=self.lam.value(), mtbf_hours=self.mtbf.value(),
                          r1=self.r1.value(), r2=self.r2.value(), p1=self.p1.value(),
                          p2=self.p2.value(), horizon_hours=self.horizon.value(),
-                         runs=self.runs.value())
+                         runs=self.runs.value(), seed=self.seed.value() or None)
 
     def _start(self, job, on_done, btn):
         try:

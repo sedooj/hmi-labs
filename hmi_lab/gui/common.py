@@ -126,8 +126,9 @@ class NumberEdit(QLineEdit):
     valueChanged = Signal(float)
 
     def __init__(self, lo, hi, value, decimals=3, integer=False, allow_empty=False,
-                 placeholder="", suffix=""):
+                 placeholder="", suffix="", grouping=True):
         super().__init__()
+        self.grouping = grouping
         self.lo, self.hi, self.decimals, self.integer = lo, hi, decimals, integer
         self.allow_empty = allow_empty
         self.suffix = suffix
@@ -172,7 +173,8 @@ class NumberEdit(QLineEdit):
         if self.allow_empty and v == 0:
             self.setText("")
         elif self.integer:
-            self.setText(f"{v:,}".replace(",", " ") + self.suffix)
+            text = f"{v:,}".replace(",", " ") if self.grouping else str(v)
+            self.setText(text + self.suffix)
         else:
             text = f"{v:.{self.decimals}f}"
             if "." in text:
@@ -190,6 +192,15 @@ def spin(lo, hi, value, step=0.1, decimals=3, suffix="") -> NumberEdit:
 def ispin(lo, hi, value, step=1, allow_empty=False, placeholder="") -> NumberEdit:
     return NumberEdit(lo, hi, value, integer=True, allow_empty=allow_empty,
                       placeholder=placeholder)
+
+
+def seed_edit(value: int) -> NumberEdit:
+    """Поле «Зерно генератора»: число — повторяемый расчёт, пусто — случайный."""
+    w = NumberEdit(0, 2**31 - 1, value, integer=True, allow_empty=True,
+                   placeholder="пусто — случайное", grouping=False)
+    w.setToolTip("Одно и то же зерно даёт одни и те же результаты. "
+                 "С зерном 2026 получены результаты в отчёте.")
+    return w
 
 
 class Plot(QWidget):

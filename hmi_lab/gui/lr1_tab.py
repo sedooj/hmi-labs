@@ -4,10 +4,10 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QMessageBox, QVBoxLayout, QWidget
 
-from ..dialog_sim import DialogSimulator, theory_mean_theme
+from ..dialog_sim import DEFAULT_SEED, DialogSimulator, theory_mean_theme
 from ..plots import draw_histograms
 from .common import (Card, Kpi, Plot, Task, button, field, fill, ispin, label, page_header,
-                     progress_bar, table)
+                     progress_bar, seed_edit, table)
 
 
 def parse_p(text: str) -> list[float]:
@@ -33,6 +33,7 @@ class Lr1Tab(QWidget):
         self.p_text = QLineEdit("0 0.3 0.6 0.9")
         self.k = ispin(0, 200, 0, allow_empty=True, placeholder="авто")
         self.k.valueChanged.connect(self.redraw)
+        self.seed = seed_edit(DEFAULT_SEED)
         self.run_btn = button("Моделировать")
         self.run_btn.clicked.connect(self.run)
         self.progress = progress_bar()
@@ -43,6 +44,9 @@ class Lr1Tab(QWidget):
         params.add(field("Интервалов гистограммы K", self.k))
         params.add(label("Пусто — K = int(1 + 3.22·lg N). Можно менять после расчёта.",
                          "muted", True))
+        params.add(field("Зерно генератора", self.seed))
+        params.add(label("С зерном 2026 получаются те же числа, что в отчёте. "
+                         "Пусто — каждый запуск случайный.", "muted", True))
         params.body.addSpacing(6)
         params.add(self.run_btn)
         params.add(self.progress)
@@ -108,10 +112,11 @@ class Lr1Tab(QWidget):
             QMessageBox.warning(self, "Проверьте данные", str(e))
             return
         n = self.n.value()
+        seed = self.seed.value() or None
         total = 3 * n * len(p_values)
 
         def job(report):
-            sim = DialogSimulator(theme)
+            sim = DialogSimulator(theme, seed)
             out, done = {}, 0
             for p in p_values:
                 for target in ("sub0", "sub1", "theme"):
