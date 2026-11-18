@@ -4,7 +4,6 @@ from __future__ import annotations
 import traceback
 
 import matplotlib
-matplotlib.use("QtAgg")
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 from PySide6.QtCore import QThread, Signal, Qt

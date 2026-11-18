@@ -16,7 +16,7 @@ from .common import (ACCENT, ACCENT2, ACCENT3, PlotWidget, Task, fill_table, isp
 INDICATORS = [
     ("q", "Q — средние удельные потери, у.е./с"),
     ("q1", "  в т.ч. от задержек регулирования R1·Στ/T"),
-    ("q2", "  в т.ч. от простоя R2·Σt_пр/T"),
+    ("q2", "  в т.ч. от простоя R2·Σθ/T"),
     ("availability", "Коэффициент готовности"),
     ("mean_delay", "Средняя задержка выдачи воздействия, с"),
     ("utilization", "Загрузка диспетчера заявками"),
@@ -103,9 +103,9 @@ class Lr2Tab(QWidget):
         self.progress.setVisible(False)
         self.formula = QLabel(
             "<b>Показатель эффективности</b><br>"
-            "Q = (R1·Σ τ<sub>i</sub> + R2·Σ t<sub>пр</sub>) / T<br>"
+            "Q = (R1·Σ τ<sub>i</sub> + R2·Σ θ<sub>j</sub>) / T<br>"
             "τ<sub>i</sub> — задержка выдачи регулирующего воздействия по i-й заявке,<br>"
-            "t<sub>пр</sub> — время простоя (восстановления), T — интервал моделирования.<br>"
+            "θ<sub>j</sub> — длительность j-го простоя (восстановления), T — интервал моделирования.<br>"
             "Чем меньше Q, тем эффективнее система.")
         self.formula.setWordWrap(True)
         self.result = readonly_table(["Показатель", "Среднее", "± 95% ДИ"])
