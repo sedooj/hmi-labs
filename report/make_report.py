@@ -487,7 +487,7 @@ def lr2():
           caption="Результаты для базового варианта", widths=[8, 3.5, 3.5])
     fig = plt.figure(figsize=(9, 3.6), layout="constrained")
     draw_lr2(fig, res)
-    figure(doc, fig, "lr2_base", "Структура потерь и динамика очереди заявок")
+    figure(doc, fig, "lr2_base", "Структура средних потерь и накопление потерь во времени")
 
     studies = [
         ("p", "P ошибки диспетчера (в обеих подтемах)", np.linspace(0, 0.6, 7)),

@@ -1,12 +1,13 @@
-"""Окно 2. ЛР1: время решения задачи пользователем."""
+"""Раздел 2. ЛР1: время решения задачи пользователем."""
 from __future__ import annotations
 
-from PySide6.QtWidgets import (QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-                               QVBoxLayout, QWidget)
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QMessageBox, QVBoxLayout, QWidget
 
 from ..dialog_sim import DialogSimulator, theory_mean_theme
 from ..plots import draw_histograms
-from .common import Plot, Task, big_button, fill, hint, ispin, progress_bar, result_table, section
+from .common import (Card, Kpi, Plot, Task, button, field, fill, ispin, label, page_header,
+                     progress_bar, table)
 
 
 def parse_p(text: str) -> list[float]:
@@ -22,56 +23,82 @@ def parse_p(text: str) -> list[float]:
 class Lr1Tab(QWidget):
     def __init__(self, get_theme, parent=None):
         super().__init__(parent)
+        self.setObjectName("page")
         self.get_theme = get_theme
         self.samples = {}
         self.theory = {}
 
+        # --- параметры -------------------------------------------------------
         self.n = ispin(100, 1_000_000, 10_000, 1000)
         self.p_text = QLineEdit("0 0.3 0.6 0.9")
-        self.k = ispin(0, 200, 0)
-        self.k.setSpecialValueText("авто")
-        self.k.setToolTip("Число интервалов гистограммы. «авто» — K = int(1 + 3.22·lg N)")
+        self.k = ispin(0, 200, 0, allow_empty=True, placeholder="авто")
         self.k.valueChanged.connect(self.redraw)
-        self.run_btn = big_button("Моделировать")
+        self.run_btn = button("Моделировать")
         self.run_btn.clicked.connect(self.run)
         self.progress = progress_bar()
 
-        form = QFormLayout()
-        form.addRow("Число реализаций N:", self.n)
-        form.addRow("Вероятности ошибки P:", self.p_text)
-        form.addRow("Интервалов K:", self.k)
+        params = Card("Параметры", "Задайте значения и запустите моделирование")
+        params.add(field("Число реализаций N", self.n))
+        params.add(field("Вероятности ошибки P (через пробел)", self.p_text))
+        params.add(field("Интервалов гистограммы K", self.k))
+        params.add(label("Пусто — K = int(1 + 3.22·lg N). Можно менять после расчёта.",
+                         "muted", True))
+        params.body.addSpacing(6)
+        params.add(self.run_btn)
+        params.add(self.progress)
+
+        # --- результаты ------------------------------------------------------
+        self.kpi = {
+            "theme": Kpi("Задача, P = 0", accent=True),
+            "sub0": Kpi("Подтема 1"),
+            "sub1": Kpi("Подтема 2"),
+            "dev": Kpi("Отклонение от формулы"),
+        }
+        kpis = QHBoxLayout()
+        kpis.setSpacing(14)
+        for k in self.kpi.values():
+            kpis.addWidget(k)
+
+        self.plot = Plot()
+        self.plot_card = Card("Гистограммы времени решения задачи",
+                              "Оранжевый столбец — интервал со средним значением")
+        self.empty = label("Нажмите «Моделировать», чтобы увидеть результаты", "muted")
+        self.empty.setAlignment(Qt.AlignCenter)
+        self.plot_card.add(self.empty, 1)
+        self.plot_card.add(self.plot, 1)
+        self.plot.setVisible(False)
+
+        self.table = table(["P", "Подт. 1", "Подт. 2", "Задача", "Формула"])
+        table_card = Card("Среднее время, с", "Моделирование и расчёт по формуле")
+        table_card.add(self.table)
+        fill(self.table, [])
 
         left = QVBoxLayout()
-        left.addWidget(hint("<b>ЛР1. Сколько времени пользователь решает задачу.</b><br><br>"
-                            "1. Задайте число реализаций N и значения вероятности ошибки P.<br>"
-                            "2. Нажмите «Моделировать».<br><br>"
-                            "Справа появятся гистограммы времени решения задачи для каждого P, "
-                            "внизу — средние времена. Число интервалов K можно поменять после "
-                            "расчёта — гистограммы перестроятся сразу."))
-        left.addLayout(form)
-        left.addWidget(self.run_btn)
-        left.addWidget(self.progress)
+        left.setSpacing(16)
+        left.addWidget(params)
+        left.addWidget(table_card)
         left.addStretch()
         left_w = QWidget()
         left_w.setLayout(left)
-        left_w.setFixedWidth(330)
+        left_w.setFixedWidth(400)
 
-        self.plot = Plot()
-        self.table = result_table(["P", "Подтема 1, с", "Подтема 2, с",
-                                   "Задача целиком, с", "По формуле, с"])
-        self.table.setVisible(False)
-        self.placeholder = QLabel("Нажмите «Моделировать», чтобы увидеть результаты")
-        self.placeholder.setStyleSheet("color: #888; font-size: 16px;")
         right = QVBoxLayout()
-        right.addWidget(section("Гистограммы времени решения задачи"))
-        right.addWidget(self.placeholder)
-        right.addWidget(self.plot, 1)
-        right.addWidget(section("Среднее время"))
-        right.addWidget(self.table)
+        right.setSpacing(16)
+        right.addLayout(kpis)
+        right.addWidget(self.plot_card, 1)
 
-        lay = QHBoxLayout(self)
-        lay.addWidget(left_w)
-        lay.addLayout(right, 1)
+        body = QHBoxLayout()
+        body.setSpacing(18)
+        body.addWidget(left_w)
+        body.addLayout(right, 1)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(28, 24, 28, 24)
+        lay.setSpacing(16)
+        lay.addWidget(page_header("ЛР1 · Время диалога",
+                                  "Сколько времени пользователь решает задачу и как это зависит "
+                                  "от вероятности ошибки P"))
+        lay.addLayout(body, 1)
 
     def run(self):
         try:
@@ -95,6 +122,7 @@ class Lr1Tab(QWidget):
             return theme, p_values, out
 
         self.run_btn.setEnabled(False)
+        self.run_btn.setText("Считаю…")
         self.progress.setVisible(True)
         self.task = Task(job, self)
         self.task.progress.connect(self.progress.setValue)
@@ -102,22 +130,33 @@ class Lr1Tab(QWidget):
         self.task.failed.connect(self._failed)
         self.task.start()
 
-    def _failed(self, text):
+    def _finish(self):
         self.run_btn.setEnabled(True)
+        self.run_btn.setText("Моделировать")
         self.progress.setVisible(False)
+
+    def _failed(self, text):
+        self._finish()
         QMessageBox.critical(self, "Ошибка", text)
 
     def _done(self, result):
-        self.run_btn.setEnabled(True)
-        self.progress.setVisible(False)
+        self._finish()
         theme, p_values, out = result
         self.samples = {p: out[("theme", p)] for p in p_values}
         self.theory = {p: theory_mean_theme(theme, p, "repeat") for p in p_values}
         rows = [[f"{p:g}", float(out[("sub0", p)].mean()), float(out[("sub1", p)].mean()),
                  float(out[("theme", p)].mean()), float(self.theory[p])] for p in p_values]
         fill(self.table, rows)
-        self.table.setVisible(True)
-        self.placeholder.setVisible(False)
+
+        p0 = p_values[0]
+        self.kpi["theme"].title.setText(f"Задача, P = {p0:g}")
+        for key in ("theme", "sub0", "sub1"):
+            self.kpi[key].set(f"{out[(key, p0)].mean():.1f} с")
+        dev = max(abs(out[("theme", p)].mean() - self.theory[p]) / self.theory[p] for p in p_values)
+        self.kpi["dev"].set(f"{dev * 100:.1f} %")
+
+        self.empty.setVisible(False)
+        self.plot.setVisible(True)
         self.redraw()
 
     def redraw(self, *_):

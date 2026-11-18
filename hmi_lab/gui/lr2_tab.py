@@ -1,15 +1,17 @@
-"""Окно 3. ЛР2: эффективность системы «диспетчер — АРМ — электросеть»."""
+"""Раздел 3. ЛР2: эффективность системы «диспетчер — АРМ — электросеть»."""
 from __future__ import annotations
 
 from dataclasses import replace
 
 import numpy as np
-from PySide6.QtWidgets import (QComboBox, QFormLayout, QGridLayout, QHBoxLayout, QLabel,
-                               QMessageBox, QVBoxLayout, QWidget)
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QComboBox, QGridLayout, QHBoxLayout, QMessageBox, QVBoxLayout,
+                               QWidget)
 
 from ..efficiency_sim import EfficiencyModel, Lr2Params
 from ..plots import draw_lr2, draw_study, run_study
-from .common import (Plot, Task, ValueCard, big_button, hint, ispin, progress_bar, section, spin)
+from .common import (Card, Kpi, Plot, Task, button, field, ispin, label, page_header,
+                     progress_bar, spin)
 
 STUDIES = [  # ключ параметра, подпись, значения
     ("p", "P ошибки диспетчера", np.linspace(0, 0.6, 7)),
@@ -20,9 +22,10 @@ STUDIES = [  # ключ параметра, подпись, значения
 class Lr2Tab(QWidget):
     def __init__(self, get_theme, parent=None):
         super().__init__(parent)
+        self.setObjectName("page")
         self.get_theme = get_theme
         d = Lr2Params()
-        self.lam = spin(0.1, 1000, d.lam_per_hour, 1, 1, " в час")
+        self.lam = spin(0.1, 1000, d.lam_per_hour, 1, 1, " / ч")
         self.mtbf = spin(0.1, 10_000, d.mtbf_hours, 0.5, 1, " ч")
         self.r1 = spin(0, 1e6, d.r1, 0.5, 2)
         self.r2 = spin(0, 1e6, d.r2, 1, 2)
@@ -31,71 +34,90 @@ class Lr2Tab(QWidget):
         self.horizon = spin(1, 100_000, d.horizon_hours, 24, 0, " ч")
         self.runs = ispin(1, 500, d.runs)
 
-        form = QFormLayout()
-        form.addRow("Заявок от сети:", self.lam)
-        form.addRow("Отказ в среднем раз в:", self.mtbf)
-        form.addRow("R1 — потери за 1 с задержки:", self.r1)
-        form.addRow("R2 — потери за 1 с простоя:", self.r2)
-        form.addRow("P ошибки при регулировании:", self.p1)
-        form.addRow("P ошибки при восстановлении:", self.p2)
-        form.addRow("Моделировать период:", self.horizon)
-        form.addRow("Повторов расчёта:", self.runs)
-
-        self.run_btn = big_button("Рассчитать")
+        # --- параметры -------------------------------------------------------
+        params = Card("Параметры системы", "Значения по умолчанию уже подобраны")
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(10)
+        for i, (cap, w) in enumerate((
+                ("Заявок от сети", self.lam), ("Отказ раз в", self.mtbf),
+                ("R1 — за 1 с задержки", self.r1), ("R2 — за 1 с простоя", self.r2),
+                ("P ошибки: заявки", self.p1), ("P ошибки: аварии", self.p2),
+                ("Период", self.horizon), ("Повторов", self.runs))):
+            grid.addWidget(field(cap, w), i // 2, i % 2)
+        params.add(grid)
+        self.run_btn = button("Рассчитать")
         self.run_btn.clicked.connect(self.run)
+        params.body.addSpacing(4)
+        params.add(self.run_btn)
+
+        study = Card("Исследование", "Как потери Q меняются от параметра диспетчера")
         self.study_param = QComboBox()
         for _, title, _ in STUDIES:
             self.study_param.addItem(title)
-        self.study_btn = big_button("Построить зависимость")
+        self.study_btn = button("Построить зависимость", "secondary")
         self.study_btn.clicked.connect(self.study)
-        self.progress = progress_bar()
+        study.add(self.study_param)
+        study.add(self.study_btn)
 
+        formula = Card("Показатель эффективности")
+        formula.add(label("<span style='font-size:15px'><b>Q = (R1·Σ задержек + R2·Σ простоя) / T</b>"
+                          "</span><br><span style='color:#6B7280'>средние потери в секунду; "
+                          "чем меньше, тем лучше</span>", wrap=True))
+
+        self.progress = progress_bar()
         left = QVBoxLayout()
-        left.addWidget(hint("<b>ЛР2. Насколько эффективно работает система.</b><br><br>"
-                            "Диспетчер обрабатывает заявки от сети (подтема 1). Иногда система "
-                            "отказывает: очередь заявок пропадает, диспетчер восстанавливает работу "
-                            "(подтема 2).<br><br>"
-                            "Показатель — средние потери в секунду:<br>"
-                            "<b>Q = (R1·Σ задержек + R2·Σ простоя) / T</b><br>"
-                            "Чем меньше Q, тем лучше."))
-        left.addLayout(form)
-        left.addWidget(self.run_btn)
-        left.addSpacing(10)
-        left.addWidget(section("Как Q зависит от параметра"))
-        left.addWidget(self.study_param)
-        left.addWidget(self.study_btn)
+        left.setSpacing(16)
+        left.addWidget(formula)
+        left.addWidget(params)
+        left.addWidget(study)
         left.addWidget(self.progress)
         left.addStretch()
         left_w = QWidget()
         left_w.setLayout(left)
-        left_w.setFixedWidth(360)
+        left_w.setFixedWidth(380)
 
-        self.cards = {
-            "q": ValueCard("Q — потери, у.е./с"),
-            "q1": ValueCard("из них от задержек"),
-            "q2": ValueCard("из них от простоя"),
-            "availability": ValueCard("Коэффициент готовности"),
-            "mean_delay": ValueCard("Средняя задержка заявки, с"),
-            "annulled": ValueCard("Пропало заявок из-за отказов"),
+        # --- результаты ------------------------------------------------------
+        self.kpi = {
+            "q": Kpi("Потери Q", accent=True),
+            "q1": Kpi("Задержки"),
+            "q2": Kpi("Простой"),
+            "availability": Kpi("Готовность"),
+            "mean_delay": Kpi("Задержка, с"),
         }
-        self.cards_box = QWidget()
-        grid = QGridLayout(self.cards_box)
-        grid.setContentsMargins(0, 0, 0, 0)
-        for i, card in enumerate(self.cards.values()):
-            grid.addWidget(card, 0, i)
-        self.plot_title = section("Результат")
-        self.plot = Plot()
-        self.placeholder = QLabel("Нажмите «Рассчитать» или «Построить зависимость»")
-        self.placeholder.setStyleSheet("color: #888; font-size: 16px;")
-        right = QVBoxLayout()
-        right.addWidget(self.cards_box)
-        right.addWidget(self.plot_title)
-        right.addWidget(self.placeholder)
-        right.addWidget(self.plot, 1)
+        self.kpi_box = QWidget()
+        kpis = QHBoxLayout(self.kpi_box)
+        kpis.setContentsMargins(0, 0, 0, 0)
+        kpis.setSpacing(14)
+        for k in self.kpi.values():
+            kpis.addWidget(k)
 
-        lay = QHBoxLayout(self)
-        lay.addWidget(left_w)
-        lay.addLayout(right, 1)
+        self.plot = Plot()
+        self.plot_card = Card("Результат", "")
+        self.empty = label("Нажмите «Рассчитать» или «Построить зависимость»", "muted")
+        self.empty.setAlignment(Qt.AlignCenter)
+        self.plot_card.add(self.empty, 1)
+        self.plot_card.add(self.plot, 1)
+        self.plot.setVisible(False)
+
+        right = QVBoxLayout()
+        right.setSpacing(16)
+        right.addWidget(self.kpi_box)
+        right.addWidget(self.plot_card, 1)
+
+        body = QHBoxLayout()
+        body.setSpacing(18)
+        body.addWidget(left_w)
+        body.addLayout(right, 1)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(28, 24, 28, 24)
+        lay.setSpacing(16)
+        lay.addWidget(page_header(
+            "ЛР2 · Эффективность системы",
+            "Диспетчер обрабатывает заявки от сети (подтема 1). При отказе очередь пропадает, "
+            "диспетчер восстанавливает работу (подтема 2)."))
+        lay.addLayout(body, 1)
 
     def params(self) -> Lr2Params:
         return Lr2Params(lam_per_hour=self.lam.value(), mtbf_hours=self.mtbf.value(),
@@ -103,12 +125,14 @@ class Lr2Tab(QWidget):
                          p2=self.p2.value(), horizon_hours=self.horizon.value(),
                          runs=self.runs.value())
 
-    def _start(self, job, on_done):
+    def _start(self, job, on_done, btn):
         try:
             theme = self.get_theme()
         except ValueError as e:
             QMessageBox.warning(self, "Проверьте исходные данные", str(e))
             return
+        self._busy_btn, self._busy_text = btn, btn.text()
+        btn.setText("Считаю…")
         self.run_btn.setEnabled(False)
         self.study_btn.setEnabled(False)
         self.progress.setVisible(True)
@@ -119,10 +143,12 @@ class Lr2Tab(QWidget):
         self.task.start()
 
     def _finish(self):
+        self._busy_btn.setText(self._busy_text)
         self.run_btn.setEnabled(True)
         self.study_btn.setEnabled(True)
         self.progress.setVisible(False)
-        self.placeholder.setVisible(False)
+        self.empty.setVisible(False)
+        self.plot.setVisible(True)
 
     def _failed(self, text):
         self._finish()
@@ -132,16 +158,16 @@ class Lr2Tab(QWidget):
     def run(self):
         params = self.params()
         self._start(lambda theme, report: EfficiencyModel(theme, params).run(
-            progress=lambda i: report(int(100 * i / params.runs))), self._done)
+            progress=lambda i: report(int(100 * i / params.runs))), self._done, self.run_btn)
 
     def _done(self, res):
         self._finish()
         fmt = {"q": "{:.3f}", "q1": "{:.3f}", "q2": "{:.3f}", "availability": "{:.4f}",
-               "mean_delay": "{:.1f}", "annulled": "{:.0f}"}
-        for key, card in self.cards.items():
-            card.set(fmt[key].format(res.mean_ci(key)[0]))
-        self.cards_box.setVisible(True)
-        self.plot_title.setText("Структура потерь и очередь заявок")
+               "mean_delay": "{:.1f}"}
+        for key, k in self.kpi.items():
+            k.set(fmt[key].format(res.mean_ci(key)[0]))
+        self.kpi_box.setVisible(True)
+        self.plot_card.title_label.setText("Потери: структура и накопление во времени")
         draw_lr2(self.plot.figure, res)
         self.plot.draw()
 
@@ -150,12 +176,11 @@ class Lr2Tab(QWidget):
         key, title, values = STUDIES[self.study_param.currentIndex()]
         base = replace(self.params(), runs=min(self.runs.value(), 10))
         self._start(lambda theme, report: run_study(theme, base, key, values, report),
-                    lambda data: self._study_done(title, data))
+                    lambda data: self._study_done(title, data), self.study_btn)
 
     def _study_done(self, title, data):
         self._finish()
-        self.cards_box.setVisible(False)
-        self.plot_title.setText(f"Как потери Q зависят от параметра «{title}» "
-                                "(полоса — 95% доверительный интервал)")
+        self.kpi_box.setVisible(False)
+        self.plot_card.title_label.setText(f"Зависимость потерь Q от параметра «{title}»")
         draw_study(self.plot.figure, title, data, simple=True)
         self.plot.draw()

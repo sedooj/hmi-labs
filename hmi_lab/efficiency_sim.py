@@ -62,6 +62,7 @@ class RunResult:
     loss1: float = 0.0
     loss2: float = 0.0
     trace: list = field(default_factory=list)  # (t, длина очереди, состояние) первого прогона
+    loss_trace: list = field(default_factory=list)  # (t, накопл. потери R1, накопл. потери R2)
 
     @property
     def q(self) -> float:
@@ -162,6 +163,8 @@ class EfficiencyModel:
                 if finish <= end:
                     res.served += 1
                     res.sum_delay += finish - arr
+                    if trace is not None:
+                        res.loss_trace.append((finish, p.r1 * res.sum_delay, p.r2 * res.downtime))
                     res.sum_service += service
                     free_at = finish
                 else:
@@ -199,6 +202,7 @@ class EfficiencyModel:
                 next_arrival += rnd.expovariate(lam)
             if trace is not None:
                 trace.append((min(t_up, H), len(queue), 1))
+                res.loss_trace.append((min(t_up, H), p.r1 * res.sum_delay, p.r2 * res.downtime))
             t = t_up
 
         res.loss1 = p.r1 * res.sum_delay

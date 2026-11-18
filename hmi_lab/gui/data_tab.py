@@ -1,13 +1,13 @@
-"""Окно 1. Исходные данные: шаги и маршруты двух подтем диалога."""
+"""Раздел 1. Исходные данные: шаги и маршруты двух подтем диалога."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLabel, QLineEdit, QMessageBox, QPushButton, QTableWidget,
-                               QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QComboBox, QFileDialog, QGridLayout, QHBoxLayout, QHeaderView,
+                               QLabel, QLineEdit, QMessageBox, QTableWidgetItem, QVBoxLayout,
+                               QWidget)
 
 from ..model import Route, Step, Subtopic, Theme
-from .common import hint, spin
+from .common import Card, button, field, label, page_header, spin, table
 
 LAWS = [("const", "Константа"), ("normal", "Нормальный"),
         ("uniform", "Равномерный"), ("exp", "Экспоненциальный")]
@@ -17,61 +17,55 @@ def _num(text: str) -> float:
     return float(text.strip().replace(",", ".") or 0)
 
 
-class SubtopicPanel(QGroupBox):
+class SubtopicCard(Card):
     changed = Signal()
 
     def __init__(self, number: int, parent=None):
-        super().__init__(f"Подтема {number}", parent)
-        self.setStyleSheet("QGroupBox { font-weight: bold; font-size: 14px; }"
-                           "QGroupBox * { font-weight: normal; font-size: 13px; }")
+        super().__init__(f"Подтема {number}", "", parent)
+        self.number = number
         self._busy = False
 
         self.name = QLineEdit()
         self.choice = spin(0, 1, 0.5, 0.05, 2)
         self.p_error = spin(0, 0.99, 0.05, 0.05, 2)
-        probs = QHBoxLayout()
-        probs.addWidget(QLabel("Вероятность выбора:"))
-        probs.addWidget(self.choice)
-        probs.addSpacing(16)
-        probs.addWidget(QLabel("Вероятность ошибки P:"))
-        probs.addWidget(self.p_error)
-        probs.addStretch()
+        top = QGridLayout()
+        top.setHorizontalSpacing(12)
+        top.addWidget(field("Название", self.name), 0, 0, 1, 2)
+        top.addWidget(field("Вероятность выбора подтемы", self.choice), 1, 0)
+        top.addWidget(field("Вероятность ошибки P", self.p_error), 1, 1)
+        self.add(top)
 
-        self.steps = QTableWidget(0, 4)
-        self.steps.setHorizontalHeaderLabels(["Шаг", "Время шага", "Параметр 1, с", "Параметр 2, с"])
+        self.add(label("Шаги диалога", "cardTitle"))
+        self.steps = table(["Шаг", "Время шага", "П1, с", "П2, с"], editable=True)
         h = self.steps.horizontalHeader()
         h.setSectionResizeMode(0, QHeaderView.Stretch)
-        for c in (1, 2, 3):
-            h.setSectionResizeMode(c, QHeaderView.ResizeToContents)
-        legend = QLabel("Константа: П1 = время.  Нормальный: П1 = μ, П2 = σ.  "
-                        "Равномерный: от П1 до П2.  Экспоненциальный: П1 = среднее.")
-        legend.setStyleSheet("color: #666; font-size: 11px;")
-        legend.setWordWrap(True)
+        h.setSectionResizeMode(1, QHeaderView.Fixed)
+        h.setSectionResizeMode(2, QHeaderView.Fixed)
+        h.setSectionResizeMode(3, QHeaderView.Fixed)
+        self.steps.setColumnWidth(1, 150)
+        self.steps.setColumnWidth(2, 56)
+        self.steps.setColumnWidth(3, 56)
+        self.add(self.steps, 3)
+        self.add(label("Константа: П1 — время · Нормальный: П1 = μ, П2 = σ · "
+                       "Равномерный: от П1 до П2 · Экспоненциальный: П1 — среднее", "muted", True))
 
-        self.routes = QTableWidget(0, 3)
-        self.routes.setHorizontalHeaderLabels(["Маршрут", "Вероятность", "Номера шагов по порядку"])
-        h = self.routes.horizontalHeader()
-        h.setSectionResizeMode(0, QHeaderView.Stretch)
-        h.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        h.setSectionResizeMode(2, QHeaderView.Stretch)
-        add = QPushButton("+ маршрут")
-        remove = QPushButton("− маршрут")
+        routes_head = QHBoxLayout()
+        routes_head.addWidget(label("Маршруты", "cardTitle"))
+        routes_head.addStretch()
+        add = button("+ Добавить", "ghost")
+        remove = button("− Удалить последний", "ghost")
         add.clicked.connect(lambda: self._add_route(Route(f"М{self.routes.rowCount() + 1}", 0, [1])))
         remove.clicked.connect(self._remove_route)
-        buttons = QHBoxLayout()
-        buttons.addWidget(add)
-        buttons.addWidget(remove)
-        buttons.addStretch()
-
-        lay = QVBoxLayout(self)
-        lay.addWidget(self.name)
-        lay.addLayout(probs)
-        lay.addWidget(QLabel("Шаги диалога:"))
-        lay.addWidget(self.steps, 3)
-        lay.addWidget(legend)
-        lay.addWidget(QLabel("Маршруты (например: 1 2 3 7 10):"))
-        lay.addWidget(self.routes, 2)
-        lay.addLayout(buttons)
+        routes_head.addWidget(add)
+        routes_head.addWidget(remove)
+        self.add(routes_head)
+        self.routes = table(["Маршрут", "Вероятность", "Шаги по порядку"], editable=True)
+        h = self.routes.horizontalHeader()
+        h.setSectionResizeMode(0, QHeaderView.Stretch)
+        h.setSectionResizeMode(1, QHeaderView.Fixed)
+        h.setSectionResizeMode(2, QHeaderView.Stretch)
+        self.routes.setColumnWidth(1, 100)
+        self.add(self.routes, 2)
 
         self.name.textChanged.connect(self.changed)
         self.choice.valueChanged.connect(self.changed)
@@ -86,7 +80,7 @@ class SubtopicPanel(QGroupBox):
     def _add_step(self, st: Step):
         r = self.steps.rowCount()
         self.steps.insertRow(r)
-        self.steps.setItem(r, 0, QTableWidgetItem(st.name))
+        self.steps.setItem(r, 0, QTableWidgetItem(f"{r + 1}. {st.name}"))
         law = QComboBox()
         for key, title in LAWS:
             law.addItem(title, key)
@@ -127,7 +121,7 @@ class SubtopicPanel(QGroupBox):
             self._add_route(rt)
 
     def subtopic(self) -> Subtopic:
-        where = self.title()
+        where = f"Подтема {self.number}"
         steps = []
         for r in range(self.steps.rowCount()):
             try:
@@ -135,7 +129,9 @@ class SubtopicPanel(QGroupBox):
                 b = _num(self.steps.item(r, 3).text() if self.steps.item(r, 3) else "")
             except ValueError:
                 raise ValueError(f"{where}, шаг {r + 1}: в параметрах должно быть число")
-            steps.append(Step(self.steps.item(r, 0).text(),
+            name = self.steps.item(r, 0).text()
+            prefix = f"{r + 1}. "
+            steps.append(Step(name[len(prefix):] if name.startswith(prefix) else name,
                               self.steps.cellWidget(r, 1).currentData(), a, b))
         routes = []
         for r in range(self.routes.rowCount()):
@@ -152,42 +148,44 @@ class SubtopicPanel(QGroupBox):
 class DataTab(QWidget):
     def __init__(self, default_file, parent=None):
         super().__init__(parent)
+        self.setObjectName("page")
         self.default_file = default_file
-        self.panels = [SubtopicPanel(1), SubtopicPanel(2)]
+        self.cards = [SubtopicCard(1), SubtopicCard(2)]
         self.title = ""
 
-        open_btn = QPushButton("Открыть файл…")
-        save_btn = QPushButton("Сохранить в файл…")
+        head = QHBoxLayout()
+        head.addWidget(page_header(
+            "Исходные данные",
+            "Шаги и маршруты двух подтем диалога. Данные уже заполнены — можно сразу "
+            "переходить к ЛР1 или ЛР2."), 1)
+        self.status = QLabel()
+        open_btn = button("Открыть файл", "")
+        save_btn = button("Сохранить", "")
         open_btn.clicked.connect(self.open_file)
         save_btn.clicked.connect(self.save_file)
-        self.status = QLabel()
-        self.status.setWordWrap(True)
+        head.addWidget(self.status, 0, Qt.AlignVCenter)
+        head.addSpacing(8)
+        head.addWidget(open_btn, 0, Qt.AlignVCenter)
+        head.addWidget(save_btn, 0, Qt.AlignVCenter)
 
-        top = QHBoxLayout()
-        top.addWidget(hint("Здесь заданы шаги и маршруты двух подтем диалога. Данные уже "
-                           "заполнены — можно ничего не менять и сразу перейти на вкладку "
-                           "«ЛР1» или «ЛР2». Вероятности маршрутов в подтеме и вероятности "
-                           "выбора двух подтем должны давать в сумме 1."), 1)
-        top.addWidget(open_btn)
-        top.addWidget(save_btn)
-
-        panels = QHBoxLayout()
-        for p in self.panels:
-            panels.addWidget(p)
-            p.changed.connect(self.validate)
+        cards = QHBoxLayout()
+        cards.setSpacing(18)
+        for c in self.cards:
+            cards.addWidget(c)
+            c.changed.connect(self.validate)
 
         lay = QVBoxLayout(self)
-        lay.addLayout(top)
-        lay.addLayout(panels, 1)
-        lay.addWidget(self.status)
+        lay.setContentsMargins(28, 24, 28, 24)
+        lay.setSpacing(16)
+        lay.addLayout(head)
+        lay.addLayout(cards, 1)
 
         if default_file.exists():
             self.load(default_file)
 
-    # --- данные ----------------------------------------------------------
     def theme(self) -> Theme:
         """Текущие данные; ValueError, если в них ошибка."""
-        theme = Theme(self.title, [p.subtopic() for p in self.panels], "repeat")
+        theme = Theme(self.title, [c.subtopic() for c in self.cards], "repeat")
         errors = theme.check()
         if errors:
             raise ValueError("\n".join(errors))
@@ -195,20 +193,23 @@ class DataTab(QWidget):
 
     def set_theme(self, theme: Theme):
         self.title = theme.title
-        for panel, sub in zip(self.panels, theme.subtopics):
-            panel.set_subtopic(sub)
+        for card, sub in zip(self.cards, theme.subtopics):
+            card.set_subtopic(sub)
         self.validate()
 
     def validate(self):
         try:
             self.theme()
-            self.status.setText("✓ Данные в порядке")
-            self.status.setStyleSheet("color: #2e7d32; font-weight: bold;")
+            self.status.setText("●  Данные в порядке")
+            self.status.setToolTip("")
+            self.status.setStyleSheet("color: #047857; background: #D1FAE5; border-radius: 12px;"
+                                      " padding: 6px 12px; font-weight: 600;")
         except ValueError as e:
-            self.status.setText("⚠ " + str(e).replace("\n", ";  "))
-            self.status.setStyleSheet("color: #b3261e; font-weight: bold;")
+            self.status.setText("●  Есть ошибки — наведите курсор")
+            self.status.setToolTip(str(e))
+            self.status.setStyleSheet("color: #B91C1C; background: #FEE2E2; border-radius: 12px;"
+                                      " padding: 6px 12px; font-weight: 600;")
 
-    # --- файлы -----------------------------------------------------------
     def load(self, path):
         try:
             self.set_theme(Theme.load(path))
