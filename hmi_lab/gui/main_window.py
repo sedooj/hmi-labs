@@ -13,7 +13,7 @@ from .lr1_tab import Lr1Tab
 from .lr2_tab import Lr2Tab
 from .style import QSS
 
-DEFAULT_FILE = Path(__file__).resolve().parents[2] / "data" / "energy_dispatch.json"
+DEFAULT_FILE = Path(__file__).resolve().parents[2] / "data" / "variant.json"
 
 
 class MainWindow(QMainWindow):
@@ -36,8 +36,8 @@ class MainWindow(QMainWindow):
         side = QVBoxLayout(sidebar)
         side.setContentsMargins(16, 24, 16, 16)
         side.setSpacing(6)
-        side.addWidget(label("⚡ HMI Lab", "brand"))
-        side.addWidget(label("АРМ диспетчера электросети", "brandSub", wrap=True))
+        side.addWidget(label("◆ HMI Lab", "brand"))
+        side.addWidget(label("Лабораторные работы 1–2", "brandSub", wrap=True))
         self.nav = QButtonGroup(self)
         for i, text in enumerate(("◫   Исходные данные", "◔   ЛР1 · Время диалога",
                                   "◈   ЛР2 · Эффективность")):
@@ -48,7 +48,7 @@ class MainWindow(QMainWindow):
         self.nav.idClicked.connect(self.pages.setCurrentIndex)
         self.nav.button(0).setChecked(True)
         side.addStretch()
-        side.addWidget(label("Интерфейсы человек–ЭВМ\nЛабораторные работы 1–2", "sidebarFoot", True))
+        side.addWidget(label("Интерфейсы человек–ЭВМ", "sidebarFoot", True))
 
         root = QWidget()
         lay = QHBoxLayout(root)

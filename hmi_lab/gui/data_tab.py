@@ -80,7 +80,7 @@ class SubtopicCard(Card):
     def _add_step(self, st: Step):
         r = self.steps.rowCount()
         self.steps.insertRow(r)
-        self.steps.setItem(r, 0, QTableWidgetItem(f"{r + 1}. {st.name}"))
+        self.steps.setItem(r, 0, QTableWidgetItem(st.name))
         law = QComboBox()
         for key, title in LAWS:
             law.addItem(title, key)

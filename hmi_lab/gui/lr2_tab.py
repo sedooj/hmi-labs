@@ -1,4 +1,4 @@
-"""Раздел 3. ЛР2: эффективность системы «диспетчер — АРМ — электросеть»."""
+"""Раздел 3. ЛР2: эффективность системы «человек-оператор — АРМ — объект управления»."""
 from __future__ import annotations
 
 from dataclasses import replace
@@ -14,8 +14,8 @@ from .common import (Card, Kpi, Plot, Task, button, field, ispin, label, page_he
                      progress_bar, spin)
 
 STUDIES = [  # ключ параметра, подпись, значения
-    ("p", "P ошибки диспетчера", np.linspace(0, 0.6, 7)),
-    ("time_scale", "Темп работы диспетчера (×время шагов)", np.linspace(0.5, 2.5, 9)),
+    ("p", "P ошибки оператора", np.linspace(0, 0.6, 7)),
+    ("time_scale", "Темп работы оператора (×время шагов)", np.linspace(0.5, 2.5, 9)),
 ]
 
 
@@ -40,9 +40,9 @@ class Lr2Tab(QWidget):
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(10)
         for i, (cap, w) in enumerate((
-                ("Заявок от сети", self.lam), ("Отказ раз в", self.mtbf),
+                ("Интенсивность заявок", self.lam), ("Отказ раз в", self.mtbf),
                 ("R1 — за 1 с задержки", self.r1), ("R2 — за 1 с простоя", self.r2),
-                ("P ошибки: заявки", self.p1), ("P ошибки: аварии", self.p2),
+                ("P ошибки: подтема 1", self.p1), ("P ошибки: подтема 2", self.p2),
                 ("Период", self.horizon), ("Повторов", self.runs))):
             grid.addWidget(field(cap, w), i // 2, i % 2)
         params.add(grid)
@@ -51,7 +51,7 @@ class Lr2Tab(QWidget):
         params.body.addSpacing(4)
         params.add(self.run_btn)
 
-        study = Card("Исследование", "Как потери Q меняются от параметра диспетчера")
+        study = Card("Исследование", "Как потери Q меняются от параметра оператора")
         self.study_param = QComboBox()
         for _, title, _ in STUDIES:
             self.study_param.addItem(title)
@@ -115,8 +115,8 @@ class Lr2Tab(QWidget):
         lay.setSpacing(16)
         lay.addWidget(page_header(
             "ЛР2 · Эффективность системы",
-            "Диспетчер обрабатывает заявки от сети (подтема 1). При отказе очередь пропадает, "
-            "диспетчер восстанавливает работу (подтема 2)."))
+            "Оператор обрабатывает заявки объекта управления (подтема 1). При отказе очередь "
+            "аннулируется, оператор восстанавливает работу системы (подтема 2)."))
         lay.addLayout(body, 1)
 
     def params(self) -> Lr2Params:
