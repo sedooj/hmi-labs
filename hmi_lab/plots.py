@@ -36,6 +36,46 @@ matplotlib.rcParams.update({
     "axes.facecolor": "white",
 })
 
+DECIMAL = "."  # для отчёта заменяется на запятую (print_style)
+
+
+def print_style():
+    """Оформление графиков для отчёта: Times New Roman, чёрный текст, десятичная запятая."""
+    global DECIMAL
+    DECIMAL = ","
+    matplotlib.rcParams.update({
+        "font.family": ["Times New Roman", "DejaVu Serif"],
+        "font.size": 12,
+        "text.color": "black",
+        "axes.labelcolor": "black",
+        "axes.titleweight": "normal",
+        "axes.titlesize": 12,
+        "axes.edgecolor": "black",
+        "axes.spines.left": True,
+        "xtick.color": "black",
+        "ytick.color": "black",
+        "ytick.left": True,
+        "legend.fontsize": 11,
+    })
+
+
+def n(x: float, spec: str = "g") -> str:
+    """Число с нужным десятичным разделителем."""
+    return format(x, spec).replace(".", DECIMAL)
+
+
+def _localize(fig):
+    if DECIMAL == ".":
+        return
+    from matplotlib.ticker import FuncFormatter, ScalarFormatter
+    f = FuncFormatter(lambda v, _: n(round(v, 10)))
+    for ax in fig.axes:
+        for axis in (ax.xaxis, ax.yaxis):
+            # только обычные числовые оси (не логарифмические и не категории)
+            if isinstance(axis.get_major_formatter(), ScalarFormatter):
+                axis.set_major_formatter(f)
+
+
 BLUE = "#4F46E5"     # основной (индиго)
 ORANGE = "#F59E0B"   # акцент (янтарный)
 GREEN = "#10B981"
@@ -62,14 +102,15 @@ def draw_histograms(fig, samples: dict[float, np.ndarray], k: int | None = None,
         colors = [ORANGE if lo <= mean < hi else BLUE for lo, hi in zip(edges, edges[1:])]
         ax.bar(edges[:-1], counts / len(x), width=np.diff(edges), align="edge",
                color=colors, edgecolor="white", linewidth=1.2)
-        ax.axvline(mean, color=ORANGE, lw=1.5, ls="--", label=f"среднее {mean:.1f} с")
+        ax.axvline(mean, color=ORANGE, lw=1.5, ls="--", label=f"среднее {n(mean, '.1f')} с")
         if theory and p in theory:
-            ax.axvline(theory[p], color="#111827", lw=1, ls=":", label=f"по формуле {theory[p]:.1f} с")
-        ax.set_title(f"P = {p:g}", loc="left")
+            ax.axvline(theory[p], color="#111827", lw=1, ls=":", label=f"по формуле {n(theory[p], '.1f')} с")
+        ax.set_title(f"P = {n(p)}", loc="left")
         ax.text(1, 1.02, f"K = {kk}", transform=ax.transAxes, ha="right", va="bottom",
-                color=MUTED, fontsize=8.5)
+                color=MUTED)
         ax.set_xlabel("время, с")
-        ax.legend(loc="upper right", fontsize=8)
+        ax.legend(loc="upper right", fontsize="small")
+    _localize(fig)
 
 
 # --- ЛР2 ---------------------------------------------------------------------
@@ -97,6 +138,7 @@ def draw_lr2(fig, res: Lr2Result):
     ax2.set_xlabel("время, ч")
     ax2.set_ylabel("потери, тыс. у.е.")
     ax2.legend(loc="upper left")
+    _localize(fig)
 
 
 STUDY_PARAMS = {
@@ -143,9 +185,10 @@ def draw_study(fig, title: str, data, simple: bool = False):
         ax1.set_yscale("log")
     if not simple:
         ax1.set_title(f"Влияние параметра: {title}")
-    ax1.legend(fontsize=9)
+    ax1.legend()
     if simple:
         ax1.set_xlabel(title)
+        _localize(fig)
         return
     d = np.array([r.mean_ci("mean_delay")[0] for _, r in data])
     a = np.array([r.mean_ci("availability")[0] for _, r in data])
@@ -158,3 +201,4 @@ def draw_study(fig, title: str, data, simple: bool = False):
     ax3.set_ylabel("коэфф. готовности", color=PURPLE)
     ax3.grid(False)
     ax2.set_xlabel(title)
+    _localize(fig)
